@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Frigochef</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar Hide */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .animate-in { animation: fadeIn 0.4s ease-out forwards; }
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        .scale-in { animation: scaleIn 0.2s ease-out forwards; }
+
+        body {
+            background-color: #0f172a;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .font-arabic { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // --- ICONS ---
+        const IconBase = ({ children, className, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+
+        const Search = (props) => <IconBase {...props}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></IconBase>;
+        const ChefHat = (props) => <IconBase {...props}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"></path><line x1="6" y1="17" x2="18" y2="17"></line></IconBase>;
+        const ShoppingBasket = (props) => <IconBase {...props}><path d="m5 11 4-7"></path><path d="m19 11-4-7"></path><path d="M2 11h20"></path><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8c.9 0 1.8-.7 2-1.6l1.7-7.4"></path><path d="m9 11 1 9"></path><path d="m15 11-1 9"></path></IconBase>;
+        const Coffee = (props) => <IconBase {...props}><path d="M17 8h1a4 4 0 1 1 0 8h-1"></path><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></IconBase>;
+        const Heart = (props) => <IconBase {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></IconBase>;
+        const ArrowLeft = (props) => <IconBase {...props}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></IconBase>;
+        const Plus = (props) => <IconBase {...props}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>;
+        const X = (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>;
+        const CheckCircle = (props) => <IconBase {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></IconBase>;
+        const Flame = (props) => <IconBase {...props}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></IconBase>;
+        const Droplets = (props) => <IconBase {...props}><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"></path><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"></path></IconBase>;
+        const Utensils = (props) => <IconBase {...props}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></IconBase>;
+        const Globe = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></IconBase>;
+        const List = (props) => <IconBase {...props}><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></IconBase>;
+        const Info = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></IconBase>;
+        const Share2 = (props) => <IconBase {...props}><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></IconBase>;
+        const Trash2 = (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></IconBase>;
+        const Refrigerator = (props) => <IconBase {...props}><path d="M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><line x1="5" y1="10" x2="19" y2="10"/><path d="M15 2v20"/></IconBase>;
+
+
+        // --- DATA ---
+        const CAT_INGREDIENTS = [
+          { id: 'legume', fr: 'Légumes & Fruits', ar: 'خضروات وفواكه', icon: '🥕' },
+          { id: 'viande', fr: 'Viandes & Poissons', ar: 'لحوم وأسماك', icon: '🥩' },
+          { id: 'epicerie', fr: 'Épicerie & Farines', ar: 'بقوليات ومؤونة', icon: '🌾' },
+          { id: 'epice', fr: 'Épices', ar: 'توابل', icon: '🌶️' },
+          { id: 'laitage', fr: 'Crèmerie', ar: 'ألبان', icon: '🧀' },
+        ];
+
+        const INGREDIENTS_DB = [
+          // LÉGUMES & FRUITS
+          { id: 'oignon', cat: 'legume', fr: 'Oignon', ar: 'بصل', img: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa829?w=100' },
+          { id: 'ail', cat: 'legume', fr: 'Ail', ar: 'ثوم', img: 'https://images.unsplash.com/photo-1615477210537-f81d9f8e5225?w=100' },
+          { id: 'tomate', cat: 'legume', fr: 'Tomate', ar: 'طماطم', img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=100' },
+          { id: 'pomme_terre', cat: 'legume', fr: 'Pomme de terre', ar: 'بطاطا', img: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=100' },
+          { id: 'courgette', cat: 'legume', fr: 'Courgette', ar: 'كوسة', img: 'https://images.unsplash.com/photo-1590052745348-185934149021?w=100' },
+          { id: 'carotte', cat: 'legume', fr: 'Carotte', ar: 'جزر', img: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=100' },
+          { id: 'navet', cat: 'legume', fr: 'Navet', ar: 'لفت', img: 'https://images.unsplash.com/photo-1514860438062-85f524c478df?w=100' },
+          { id: 'poivron', cat: 'legume', fr: 'Poivron', ar: 'فلفل حلو', img: 'https://images.unsplash.com/photo-1563565375-f3fdf5dbc239?w=100' },
+          { id: 'piment', cat: 'legume', fr: 'Piment', ar: 'فلفل حار', img: 'https://images.unsplash.com/photo-1588252303782-cb80119abd6d?w=100' },
+          { id: 'aubergine', cat: 'legume', fr: 'Aubergine', ar: 'باذنجان', img: 'https://images.unsplash.com/photo-1619864273822-0a2b02447e1d?w=100' },
+          { id: 'artichaut', cat: 'legume', fr: 'Artichaut', ar: 'خرشوف', img: 'https://images.unsplash.com/photo-1601640232506-694d5b2c7300?w=100' },
+          { id: 'petit_pois', cat: 'legume', fr: 'Petits pois', ar: 'بازلاء', img: 'https://images.unsplash.com/photo-1590408542918-4777d13b28b5?w=100' },
+          { id: 'feve', cat: 'legume', fr: 'Fèves', ar: 'فول', img: 'https://images.unsplash.com/photo-1567409279410-d096b1b08493?w=100' },
+          { id: 'citron', cat: 'legume', fr: 'Citron', ar: 'ليمون', img: 'https://images.unsplash.com/photo-1590502593747-42a996133562?w=100' },
+          { id: 'orange', cat: 'legume', fr: 'Orange', ar: 'برتقال', img: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=100' },
+          { id: 'dattes', cat: 'legume', fr: 'Dattes', ar: 'تمر', img: 'https://images.unsplash.com/photo-1559837627-22f3c7e7d69f?w=100' },
+          { id: 'coriandre', cat: 'legume', fr: 'Coriandre', ar: 'كزبرة', img: 'https://images.unsplash.com/photo-1589197331516-4d84b72e6578?w=100' },
+          { id: 'persil', cat: 'legume', fr: 'Persil', ar: 'بقدونس', img: 'https://images.unsplash.com/photo-1589197331516-4d84b72e6578?w=100' },
+          { id: 'menthe', cat: 'legume', fr: 'Menthe', ar: 'نعناع', img: 'https://images.unsplash.com/photo-1628556270448-4d4e614e4910?w=100' },
+
+          // VIANDES
+          { id: 'poulet', cat: 'viande', fr: 'Poulet', ar: 'دجاج', img: 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=100' },
+          { id: 'viande_rouge', cat: 'viande', fr: 'Viande Rouge', ar: 'لحم أحمر', img: 'https://images.unsplash.com/photo-1603048297172-c92544798d5e?w=100' },
+          { id: 'viande_hachee', cat: 'viande', fr: 'Viande Hachée', ar: 'لحم مفروم', img: 'https://images.unsplash.com/photo-1564834724105-918b73d1b9e0?w=100' },
+          { id: 'merguez', cat: 'viande', fr: 'Merguez', ar: 'مرقاز', img: 'https://images.unsplash.com/photo-1599553538421-4f1146249557?w=100' },
+          { id: 'poisson', cat: 'viande', fr: 'Poisson/Sardine', ar: 'سمك/سردين', img: 'https://images.unsplash.com/photo-1535916707213-976451e50529?w=100' },
+          { id: 'oeufs', cat: 'viande', fr: 'Oeufs', ar: 'بيض', img: 'https://images.unsplash.com/photo-1491524062933-cb0289261700?w=100' },
+          
+          // EPICERIE & BASE
+          { id: 'farine', cat: 'epicerie', fr: 'Farine', ar: 'فرينة', img: 'https://images.unsplash.com/photo-1586585571612-47d095e1925e?w=100' },
+          { id: 'sucre', cat: 'epicerie', fr: 'Sucre', ar: 'سكر', img: 'https://images.unsplash.com/photo-1616645312019-5d15a5cb3531?w=100' },
+          { id: 'levure', cat: 'epicerie', fr: 'Levure (Chim/Boul)', ar: 'خميرة', img: 'https://images.unsplash.com/photo-1627485937980-221c88ac04f9?w=100' },
+          { id: 'couscous', cat: 'epicerie', fr: 'Couscous', ar: 'كسكس', img: 'https://images.unsplash.com/photo-1586548688220-3162b70f074a?w=100' },
+          { id: 'semoule', cat: 'epicerie', fr: 'Semoule', ar: 'سميد', img: 'https://images.unsplash.com/photo-1586548688220-3162b70f074a?w=100' },
+          { id: 'frik', cat: 'epicerie', fr: 'Frik', ar: 'فريك', img: 'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=100' },
+          { id: 'pois_chiche', cat: 'epicerie', fr: 'Pois chiches', ar: 'حمص', img: 'https://images.unsplash.com/photo-1584661848529-6799042c16f0?w=100' },
+          { id: 'lentilles', cat: 'epicerie', fr: 'Lentilles', ar: 'عدس', img: 'https://images.unsplash.com/photo-1590746934575-b6d3cc320146?w=100' },
+          { id: 'haricot_blanc', cat: 'epicerie', fr: 'Haricots Blancs', ar: 'فاصولياء', img: 'https://images.unsplash.com/photo-1567634267440-624021798358?w=100' },
+          { id: 'riz', cat: 'epicerie', fr: 'Riz', ar: 'أرز', img: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=100' },
+          { id: 'pates', cat: 'epicerie', fr: 'Pâtes/Vermicelles', ar: 'عجائن', img: 'https://images.unsplash.com/photo-1551462147-37885acc36f1?w=100' },
+          { id: 'olives', cat: 'epicerie', fr: 'Olives', ar: 'زيتون', img: 'https://images.unsplash.com/photo-1589139529328-963d76ce1231?w=100' },
+          { id: 'huile', cat: 'epicerie', fr: 'Huile', ar: 'زيت', img: 'https://images.unsplash.com/photo-1474979266404-7cadd91babdc?w=100' },
+          { id: 'miel', cat: 'epicerie', fr: 'Miel', ar: 'عسل', img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=100' },
+          { id: 'amandes', cat: 'epicerie', fr: 'Amandes/Cacahuètes', ar: 'لوز/كاوكاو', img: 'https://images.unsplash.com/photo-1508061253366-f7da158b6d6b?w=100' },
+          { id: 'cafe', cat: 'epicerie', fr: 'Café', ar: 'قهوة', img: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=100' },
+          { id: 'the_vert', cat: 'epicerie', fr: 'Thé Vert', ar: 'شاي أخضر', img: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=100' },
+
+          // EPICES
+          { id: 'sel', cat: 'epice', fr: 'Sel', ar: 'ملح', img: 'https://images.unsplash.com/photo-1626131776934-22b62071869e?w=100' },
+          { id: 'poivre', cat: 'epice', fr: 'Poivre', ar: 'فلفل أسود', img: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=100' },
+          { id: 'cumin', cat: 'epice', fr: 'Cumin', ar: 'كمون', img: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=100' },
+          { id: 'cannelle', cat: 'epice', fr: 'Cannelle', ar: 'قرفة', img: 'https://images.unsplash.com/photo-1556687259-25f381c0cb1f?w=100' },
+          { id: 'paprika', cat: 'epice', fr: 'Paprika', ar: 'عكري', img: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=100' },
+
+          // LAITAGE
+          { id: 'lait', cat: 'laitage', fr: 'Lait', ar: 'حليب', img: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=100' },
+          { id: 'beurre', cat: 'laitage', fr: 'Beurre/Smen', ar: 'زبدة/سمن', img: 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=100' },
+          { id: 'fromage', cat: 'laitage', fr: 'Fromage', ar: 'جبن', img: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=100' },
+          { id: 'yaourt', cat: 'laitage', fr: 'Yaourt', ar: 'ياغورت', img: 'https://images.unsplash.com/photo-1562122394-b1539205562d?w=100' },
+        ];
+
+        const RECIPES_DB = [
+          // --- PLATS ---
+          {
+            id: 1, type: 'plat', title: { fr: "Couscous Royal", ar: "كسكس ملكي" },
+            img: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=800", time: "120", calories: "750",
+            ingredients: ["couscous", "viande_rouge", "poulet", "merguez", "pois_chiche", "carotte", "courgette", "navet"],
+            instructions: { fr: ["Cuire les viandes et légumes.", "Vapeur le couscous."], ar: ["طيبي المرقة.", "فوري الكسكس."] }
+          },
+          {
+            id: 2, type: 'plat', title: { fr: "Chorba Frik", ar: "شربة فريك" },
+            img: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800", time: "45", calories: "400",
+            ingredients: ["viande_rouge", "frik", "tomate", "pois_chiche", "oignon", "coriandre", "menthe"],
+            instructions: { fr: ["Revenir viande et tomates.", "Ajouter l'eau et le frik.", "Herbes à la fin."], ar: ["قلي اللحم والطماطم.", "مرقي وزيدي الفريك.", "القصبر فالتالي."] }
+          },
+          {
+            id: 3, type: 'plat', title: { fr: "Tajine Zitoune", ar: "طاجين زيتون" },
+            img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800", time: "50", calories: "500",
+            ingredients: ["poulet", "olives", "carotte", "oignon", "citron", "beurre"],
+            instructions: { fr: ["Blanchir olives.", "Mijoter poulet et carottes.", "Lier la sauce."], ar: ["غلي الزيتون.", "طيبي الدجاج والزرودية."] }
+          },
+          {
+            id: 4, type: 'plat', title: { fr: "Chakchouka", ar: "شكشوكة" },
+            img: "https://images.unsplash.com/photo-1590412200988-a436970781fa?w=800", time: "25", calories: "350",
+            ingredients: ["tomate", "oignon", "poivron", "oeufs", "ail", "huile"],
+            instructions: { fr: ["Frire oignons/poivrons.", "Ajouter tomates.", "Oeufs à la fin."], ar: ["قلي البصل والفلفل.", "زيدي الطماطم والبيض."] }
+          },
+          {
+            id: 5, type: 'plat', title: { fr: "Mhadjeb", ar: "محاجب" },
+            img: "https://images.unsplash.com/photo-1584278860047-22db9ff82bed?w=800", time: "60", calories: "600",
+            ingredients: ["semoule", "oignon", "tomate", "huile", "ail"],
+            instructions: { fr: ["Pâte fine.", "Farce oignon/tomate.", "Cuire sur tajine."], ar: ["العجينة والشكشوكة.", "طيبي فالطاجين."] }
+          },
+          {
+            id: 6, type: 'plat', title: { fr: "Dolma", ar: "دولمة" },
+            img: "https://images.unsplash.com/photo-1606756285524-7f2a1b5a61c3?w=800", time: "50", calories: "450",
+            ingredients: ["viande_hachee", "courgette", "pomme_terre", "oignon", "oeufs", "pois_chiche"],
+            instructions: { fr: ["Farcir légumes avec viande.", "Cuire sauce blanche."], ar: ["عمري الخضرة.", "طيبي مرقة بيضاء."] }
+          },
+          {
+            id: 7, type: 'plat', title: { fr: "Loubia", ar: "لوبيا" },
+            img: "https://images.unsplash.com/photo-1567634267440-624021798358?w=800", time: "60", calories: "400",
+            ingredients: ["haricot_blanc", "tomate", "ail", "viande_rouge", "cumin"],
+            instructions: { fr: ["Mijoter haricots et viande.", "Dersa à l'ail."], ar: ["اللوبيا واللحم.", "الدرسة."] }
+          },
+          {
+            id: 8, type: 'plat', title: { fr: "Rechta", ar: "رشتة" },
+            img: "https://images.unsplash.com/photo-1626806812404-e3c35b5a7457?w=800", time: "60", calories: "550",
+            ingredients: ["pates", "poulet", "navet", "courgette", "pois_chiche", "cannelle"],
+            instructions: { fr: ["Vapeur les pâtes.", "Sauce blanche navet."], ar: ["فوري الرشتة.", "مرقة لفت."] }
+          },
+          {
+            id: 9, type: 'plat', title: { fr: "Sardines Frites", ar: "سردين مقلي" },
+            img: "https://images.unsplash.com/photo-1535916707213-976451e50529?w=800", time: "20", calories: "300",
+            ingredients: ["poisson", "ail", "cumin", "citron", "huile", "farine"],
+            instructions: { fr: ["Mariner à la dersa.", "Fariner et frire."], ar: ["الدرسة.", "رمدي في الفرينة وقلي."] }
+          },
+          {
+            id: 10, type: 'plat', title: { fr: "Chtitha Poulet", ar: "شطيطحة دجاج" },
+            img: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800", time: "45", calories: "500",
+            ingredients: ["poulet", "ail", "pois_chiche", "paprika", "huile"],
+            instructions: { fr: ["Poulet dans la dersa rouge.", "Pois chiches."], ar: ["درس الدجاج.", "مرقة حمراء بالحمص."] }
+          },
+          {
+            id: 11, type: 'plat', title: { fr: "Bourek Viande", ar: "بوراك باللحم" },
+            img: "https://images.unsplash.com/photo-1584278859516-778844eb4d00?w=800", time: "30", calories: "350",
+            ingredients: ["viande_hachee", "oignon", "oeufs", "fromage", "persil", "huile"],
+            instructions: { fr: ["Cuire viande hachée.", "Rouler dans feuilles.", "Frire."], ar: ["طيبي اللحم.", "لوي البوراك وقلي."] }
+          },
+          {
+            id: 12, type: 'plat', title: { fr: "Garantita", ar: "كرانتيكا" },
+            img: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=800", time: "45", calories: "300",
+            ingredients: ["pois_chiche", "oeufs", "huile", "cumin", "lait", "pain"], // Poudre pois chiche
+            instructions: { fr: ["Mélanger poudre, eau, lait, oeuf.", "Four chaud 45min."], ar: ["خلطي كلش.", "كوشة حامية."] }
+          },
+          {
+            id: 13, type: 'plat', title: { fr: "Frites Omelette", ar: "فريت أومليت" },
+            img: "https://images.unsplash.com/photo-1593584785033-9c7604d0863f?w=800", time: "20", calories: "400",
+            ingredients: ["pomme_terre", "oeufs", "huile", "sel", "persil"],
+            instructions: { fr: ["Frire les pommes de terre.", "Battre oeufs et verser."], ar: ["قلي البطاطا.", "فرغي البيض."] }
+          },
+          {
+            id: 14, type: 'plat', title: { fr: "Salade Mechouia", ar: "حميس/مشوية" },
+            img: "https://images.unsplash.com/photo-1529312266912-b33cf6227e2f?w=800", time: "30", calories: "150",
+            ingredients: ["poivron", "tomate", "ail", "huile", "piment"],
+            instructions: { fr: ["Griller poivrons/tomates.", "Ecraser avec huile d'olive."], ar: ["شوي الفلفل والطماطم.", "رحي مع زيت زيتون."] }
+          },
+          {
+            id: 15, type: 'plat', title: { fr: "Gratin Dauphinois", ar: "غراتان بطاطا" },
+            img: "https://images.unsplash.com/photo-1567115840615-18451121d37a?w=800", time: "50", calories: "500",
+            ingredients: ["pomme_terre", "lait", "beurre", "fromage", "ail"],
+            instructions: { fr: ["Lamelles de pommes de terre.", "Cuire dans lait/ail.", "Gratiner."], ar: ["قطعي البطاطا.", "طيبي فالحليب.", "حمري فالكوشة."] }
+          },
+          {
+            id: 16, type: 'plat', title: { fr: "Tbikha", ar: "طبيخة" },
+            img: "https://images.unsplash.com/photo-1590408542918-4777d13b28b5?w=800", time: "45", calories: "350",
+            ingredients: ["feve", "petit_pois", "artichaut", "ail", "riz", "coriandre"],
+            instructions: { fr: ["Mijoter les légumes verts.", "Ajouter riz à la fin."], ar: ["طيبي الخضرة.", "رمي الروز فالتالي."] }
+          },
+          {
+            id: 17, type: 'plat', title: { fr: "Chorba Vermicelle", ar: "شربة فيرميسل" },
+            img: "https://images.unsplash.com/photo-1547592180-85f173990554?w=800", time: "40", calories: "350",
+            ingredients: ["poulet", "pates", "tomate", "oignon", "pois_chiche", "celeri"],
+            instructions: { fr: ["Bouillon poulet/tomate.", "Jeter le vermicelle à la fin."], ar: ["مرقة حمراء.", "رمي الفرميسل وطفي."] }
+          },
+          {
+            id: 18, type: 'plat', title: { fr: "Zaalouk", ar: "زعلوك" },
+            img: "https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=800", time: "25", calories: "180",
+            ingredients: ["aubergine", "tomate", "ail", "cumin", "huile", "citron"],
+            instructions: { fr: ["Cuire aubergines et tomates.", "Ecraser en purée."], ar: ["طيبي الدنجال والطماطم.", "معسي كلش."] }
+          },
+          {
+            id: 19, type: 'plat', title: { fr: "Ojja Merguez", ar: "عجة مرقاز" },
+            img: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?w=800", time: "20", calories: "500",
+            ingredients: ["merguez", "oeufs", "tomate", "ail", "piment"],
+            instructions: { fr: ["Poêler merguez.", "Sauce tomate.", "Oeufs mollets."], ar: ["قلي المرقاز.", "لاصوص.", "البيض."] }
+          },
+          {
+            id: 20, type: 'plat', title: { fr: "Mderbel Aubergine", ar: "مدربل" },
+            img: "https://images.unsplash.com/photo-1542528180-a1208c5169a5?w=800", time: "60", calories: "600",
+            ingredients: ["viande_rouge", "aubergine", "pois_chiche", "vinaigre", "ail"],
+            instructions: { fr: ["Sauce blanche viande.", "Frire aubergines.", "Ajouter à la sauce."], ar: ["مرقة بيضاء.", "قلي الدنجال.", "اجمعي الكل."] }
+          },
+
+          // --- DESSERTS ---
+          {
+            id: 101, type: 'dessert', title: { fr: "Baghrir", ar: "بغرير" },
+            img: "https://images.unsplash.com/photo-1585235882334-7d52f9540b99?w=800", time: "30", calories: "250",
+            ingredients: ["semoule", "levure", "eau", "miel", "beurre"],
+            instructions: { fr: ["Mixer pâte liquide.", "Cuire.", "Miel/Beurre."], ar: ["مكسي.", "طيبي.", "عسلي."] }
+          },
+          {
+            id: 102, type: 'dessert', title: { fr: "Tamina", ar: "طمينة" },
+            img: "https://images.unsplash.com/photo-1576023257850-252a5592bb34?w=800", time: "15", calories: "500",
+            ingredients: ["semoule", "miel", "beurre", "cannelle"],
+            instructions: { fr: ["Griller semoule.", "Mélanger miel/beurre."], ar: ["حمصي.", "خلطي."] }
+          },
+          {
+            id: 103, type: 'dessert', title: { fr: "Mouskoutchou", ar: "موسكوتشو" },
+            img: "https://images.unsplash.com/photo-1627834377411-8da5f4f09de8?w=800", time: "45", calories: "350",
+            ingredients: ["farine", "oeufs", "sucre", "huile", "levure", "citron"],
+            instructions: { fr: ["Battre oeufs/sucre.", "Ajouter huile/farine.", "Four 180°C."], ar: ["خلطي البيض والسكر.", "زيدي الزيت والفرينة.", "للكوشة."] }
+          },
+          {
+            id: 104, type: 'dessert', title: { fr: "Makroud", ar: "مقروط" },
+            img: "https://images.unsplash.com/photo-1534432182912-63863115e106?w=800", time: "90", calories: "450",
+            ingredients: ["semoule", "dattes", "miel", "huile", "beurre"],
+            instructions: { fr: ["Pâte semoule.", "Farce dattes.", "Frire et mieller."], ar: ["العجينة والغرس.", "قلي وعسلي."] }
+          },
+          {
+            id: 105, type: 'dessert', title: { fr: "Crêpes", ar: "كريب" },
+            img: "https://images.unsplash.com/photo-1519676867240-f03562e64548?w=800", time: "20", calories: "200",
+            ingredients: ["farine", "lait", "oeufs", "sucre", "beurre"],
+            instructions: { fr: ["Mélanger tout.", "Cuire à la poêle."], ar: ["خلطي.", "طيبي فالمقلاة."] }
+          },
+          {
+            id: 106, type: 'dessert', title: { fr: "Ghribia", ar: "غريبية" },
+            img: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800", time: "30", calories: "300",
+            ingredients: ["farine", "sucre", "huile", "beurre"], // cannelle
+            instructions: { fr: ["Sablez farine/gras.", "Façonner.", "Four doux."], ar: ["لمي العجينة.", "شكلي.", "كوشة ناقصة."] }
+          },
+          {
+            id: 107, type: 'dessert', title: { fr: "Salade d'Oranges", ar: "سلطة برتقال" },
+            img: "https://images.unsplash.com/photo-1599320677567-4f7d45b53e4b?w=800", time: "10", calories: "100",
+            ingredients: ["orange", "sucre", "cannelle", "menthe"],
+            instructions: { fr: ["Couper oranges.", "Saupoudrer cannelle/sucre."], ar: ["قطعي التشينة.", "دردري القرفة والسكر."] }
+          },
+          {
+            id: 108, type: 'dessert', title: { fr: "Riz au lait", ar: "أرز بالحليب" },
+            img: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800", time: "30", calories: "250",
+            ingredients: ["riz", "lait", "sucre", "cannelle"],
+            instructions: { fr: ["Cuire riz dans l'eau.", "Ajouter lait/sucre."], ar: ["غلي الروز.", "زيدي الحليب والسكر."] }
+          },
+          {
+            id: 109, type: 'dessert', title: { fr: "Mbesses", ar: "مبسس" },
+            img: "https://images.unsplash.com/photo-1621256662445-565b9d3c524b?w=800", time: "30", calories: "400",
+            ingredients: ["semoule", "beurre", "sel", "eau", "miel"],
+            instructions: { fr: ["Sabler semoule/beurre.", "Aplatir et couper.", "Cuire tajine."], ar: ["بسي السميد.", "قطعي.", "طيبي فالطاجين."] }
+          },
+          {
+            id: 110, type: 'dessert', title: { fr: "Bradj", ar: "براج" },
+            img: "https://images.unsplash.com/photo-1589133465330-811c76891002?w=800", time: "60", calories: "500",
+            ingredients: ["semoule", "dattes", "beurre", "cannelle"],
+            instructions: { fr: ["Pâte semoule.", "Couche de dattes.", "Découper losanges."], ar: ["طبقة سميد وطبقة تمر.", "قطعي وطيبي."] }
+          },
+          {
+            id: 111, type: 'dessert', title: { fr: "Pancakes", ar: "بان كيك" },
+            img: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=800", time: "20", calories: "250",
+            ingredients: ["farine", "lait", "oeufs", "levure", "sucre"],
+            instructions: { fr: ["Pâte épaisse.", "Cuire petites louches."], ar: ["عجينة ثقيلة.", "طيبي."] }
+          },
+          {
+            id: 112, type: 'dessert', title: { fr: "Mchawek", ar: "مشوك" },
+            img: "https://images.unsplash.com/photo-1600093463592-8e36ae95ef56?w=800", time: "40", calories: "350",
+            ingredients: ["amandes", "sucre", "oeufs", "citron"],
+            instructions: { fr: ["Mélanger amandes/sucre.", "Boules dans amandes effilées."], ar: ["لوز وسكر.", "رمدي فاللوز ايفيلي."] }
+          },
+          {
+            id: 113, type: 'dessert', title: { fr: "Pain Perdu", ar: "خبز بايت" },
+            img: "https://images.unsplash.com/photo-1542523235-9626353995f5?w=800", time: "15", calories: "300",
+            ingredients: ["pain", "lait", "oeufs", "sucre", "beurre"], 
+            instructions: { fr: ["Tremper pain dans lait/oeuf.", "Poêler au beurre."], ar: ["شمخي الخبز فالحليب والبيض.", "قلي فالزبدة."] }
+          },
+          {
+            id: 114, type: 'dessert', title: { fr: "Zlabia (Maison)", ar: "زلابية" },
+            img: "https://images.unsplash.com/photo-1590052951717-3d927d3c0138?w=800", time: "120", calories: "450",
+            ingredients: ["farine", "levure", "eau", "miel", "safran"], 
+            instructions: { fr: ["Fermenter la pâte.", "Frire en spirale.", "Tremper miel."], ar: ["خمر العجينة.", "قلي.", "عسلي."] }
+          },
+          {
+            id: 115, type: 'dessert', title: { fr: "Samsa", ar: "صامصة" },
+            img: "https://images.unsplash.com/photo-1591129469502-b2518e959586?w=800", time: "45", calories: "400",
+            ingredients: ["farine", "amandes", "miel", "beurre", "eau"],
+            instructions: { fr: ["Farce amandes.", "Triangle pâte.", "Frire et mieller."], ar: ["حشو اللوز.", "شكلي مثلثات.", "قلي وعسلي."] }
+          },
+
+          // --- BOISSONS ---
+          {
+            id: 201, type: 'boisson', title: { fr: "Thé à la Menthe", ar: "شاي بالنعناع" },
+            img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800", time: "20", calories: "80",
+            ingredients: ["the_vert", "menthe", "sucre", "eau"],
+            instructions: { fr: ["Rincer thé.", "Infuser.", "Menthe et sucre."], ar: ["شلي التاي.", "طبخي.", "النعناع والسكر."] }
+          },
+          {
+            id: 202, type: 'boisson', title: { fr: "Cherbet", ar: "شاربات" },
+            img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800", time: "10", calories: "150",
+            ingredients: ["citron", "eau", "sucre", "lait"],
+            instructions: { fr: ["Jus de citron + eau.", "Sucre et trait de lait."], ar: ["قارص وماء.", "سكر وشويا حليب."] }
+          },
+          {
+            id: 203, type: 'boisson', title: { fr: "Jus d'Orange", ar: "عصير برتقال" },
+            img: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=800", time: "10", calories: "120",
+            ingredients: ["orange", "sucre"],
+            instructions: { fr: ["Presser oranges.", "Sucre si besoin."], ar: ["عصري التشينة."] }
+          },
+          {
+            id: 204, type: 'boisson', title: { fr: "Café au Lait", ar: "قهوة حليب" },
+            img: "https://images.unsplash.com/photo-1517701604599-bb29b5c7dd90?w=800", time: "5", calories: "80",
+            ingredients: ["cafe", "lait", "sucre"],
+            instructions: { fr: ["Café fort.", "Lait chaud."], ar: ["قهوة قاطعة.", "حليب سخون."] }
+          },
+          {
+            id: 205, type: 'boisson', title: { fr: "Jus de Carotte", ar: "عصير زرودية" },
+            img: "https://images.unsplash.com/photo-1598460662243-7f7223631674?w=800", time: "20", calories: "150",
+            ingredients: ["carotte", "orange", "sucre", "citron"],
+            instructions: { fr: ["Cuire carottes.", "Mixer avec jus d'orange."], ar: ["غلي الزرودية.", "رحي مع التشينة."] }
+          },
+          {
+            id: 206, type: 'boisson', title: { fr: "Thé au Citron", ar: "شاي بالليمون" },
+            img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800", time: "10", calories: "60",
+            ingredients: ["the_vert", "citron", "miel"],
+            instructions: { fr: ["Infuser thé.", "Ajouter jus de citron et miel."], ar: ["طيب التاي.", "زيد القارص والعسل."] }
+          },
+          {
+            id: 207, type: 'boisson', title: { fr: "Lben / Rayeb", ar: "لبن / رايب" },
+            img: "https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=800", time: "0", calories: "100",
+            ingredients: ["lait"],
+            instructions: { fr: ["Lait fermenté frais."], ar: ["يقدم بارد."] }
+          },
+          {
+            id: 208, type: 'boisson', title: { fr: "Chocolat Chaud", ar: "شوكولاطة ساخنة" },
+            img: "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=800", time: "10", calories: "300",
+            ingredients: ["lait", "sucre", "cannelle"], // cacao implicite
+            instructions: { fr: ["Lait chaud.", "Cacao/Chocolat.", "Sucre."], ar: ["فيضي الحليب.", "زيدي الشكولاطة."] }
+          },
+          {
+            id: 209, type: 'boisson', title: { fr: "Smoothie Datte", ar: "عصير التمر" },
+            img: "https://images.unsplash.com/photo-1550529889-8d82a690e03e?w=800", time: "5", calories: "350",
+            ingredients: ["dattes", "lait", "amandes"],
+            instructions: { fr: ["Mixer lait et dattes.", "Servir frais."], ar: ["مكسي الحليب والتمر."] }
+          },
+          {
+            id: 210, type: 'boisson', title: { fr: "Citronnade Menthe", ar: "مخيتو" },
+            img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800", time: "10", calories: "120",
+            ingredients: ["citron", "menthe", "sucre", "eau"],
+            instructions: { fr: ["Mixer citron, menthe, sucre, eau.", "Filtrer."], ar: ["مكسي كلش.", "صفي."] }
+          },
+          {
+            id: 211, type: 'boisson', title: { fr: "Eau Détox", ar: "ماء ديتوكس" },
+            img: "https://images.unsplash.com/photo-1556881286-fc6915169721?w=800", time: "0", calories: "0",
+            ingredients: ["eau", "citron", "menthe"], // concombre
+            instructions: { fr: ["Eau avec tranches de citron/menthe."], ar: ["ماء بالنعناع والقارص."] }
+          },
+          {
+            id: 212, type: 'boisson', title: { fr: "Mazagran", ar: "مازاغران" },
+            img: "https://images.unsplash.com/photo-1497515114629-f71d768fd07c?w=800", time: "5", calories: "10",
+            ingredients: ["cafe", "eau"], // Glacons
+            instructions: { fr: ["Café versé sur glaçons.", "Eau."], ar: ["قهوة بالماء بارد والجلاسون."] }
+          }
+        ];
+
+        const TRANSLATIONS = {
+          fr: {
+            appTitle: "Frigochef",
+            pantry: "Mon Frigo",
+            recipes: "Recettes",
+            shop: "Courses",
+            shopEmpty: "Votre liste est vide",
+            search: "Rechercher...",
+            empty_stock: "Mon Frigo est vide.",
+            find_btn: "Voir les Recettes",
+            ingredients_tab: "Ingrédients",
+            favorites_tab: "Favoris",
+            cat_legume: "Légumes",
+            cat_viande: "Viandes",
+            cat_epicerie: "Épicerie",
+            cat_epice: "Épices",
+            cat_laitage: "Frais",
+            filter_plat: "Plats",
+            filter_dessert: "Desserts",
+            filter_boisson: "Boissons",
+            filter_fav: "Favoris",
+            missing: "Manquant",
+            have_all: "Vous avez tout !",
+            prep: "Préparation",
+            add_list: "Ajouter au panier",
+            clear: "Vider",
+            share: "Partager",
+            copied: "Copié !",
+            lang_btn: "العربية",
+            min: "min",
+            calories: "kcal",
+            no_favs: "Aucun favori pour l'instant"
+          },
+          ar: {
+            appTitle: "فريغو-شاف",
+            pantry: "ثلاجتي",
+            recipes: "الوصفات",
+            shop: "المشتريات",
+            shopEmpty: "القائمة فارغة",
+            search: "ابحث عن مكون...",
+            empty_stock: "الثلاجة فارغة.",
+            find_btn: "عرض الوصفات",
+            ingredients_tab: "المكونات",
+            favorites_tab: "المفضلة",
+            cat_legume: "خضار",
+            cat_viande: "لحوم",
+            cat_epicerie: "مؤونة",
+            cat_epice: "توابل",
+            cat_laitage: "ألبان",
+            filter_plat: "أطباق",
+            filter_dessert: "تحلية",
+            filter_boisson: "مشروبات",
+            filter_fav: "المفضلة",
+            missing: "ينقصك",
+            have_all: "عندك كلش !",
+            prep: "التحضير",
+            add_list: "أضف للقائمة",
+            clear: "مسح",
+            share: "نشر",
+            copied: "تم النسخ !",
+            lang_btn: "Français",
+            min: "د",
+            calories: "سعرة",
+            no_favs: "لا توجد مفضلة حاليا"
+          }
+        };
+
+        function App() {
+          // --- STATE ---
+          const [lang, setLang] = useState('fr');
+          const [activeTab, setActiveTab] = useState('pantry'); 
+          const [selectedCat, setSelectedCat] = useState('legume');
+          const [selectedRecipeFilter, setSelectedRecipeFilter] = useState('plat');
+          const [pantry, setPantry] = useState([]);
+          const [shoppingList, setShoppingList] = useState([]);
+          const [favorites, setFavorites] = useState([]);
+          const [searchTerm, setSearchTerm] = useState("");
+          const [selectedRecipe, setSelectedRecipe] = useState(null);
+          const [showCopyFeedback, setShowCopyFeedback] = useState(false);
+
+          const t = TRANSLATIONS[lang];
+          const isRTL = lang === 'ar';
+
+          // --- PERSISTENCE (LOCALSTORAGE) ---
+          useEffect(() => {
+            const savedPantry = localStorage.getItem('fc_pantry');
+            const savedShop = localStorage.getItem('fc_shop');
+            const savedFavs = localStorage.getItem('fc_favs');
+            if (savedPantry) setPantry(JSON.parse(savedPantry));
+            if (savedShop) setShoppingList(JSON.parse(savedShop));
+            if (savedFavs) setFavorites(JSON.parse(savedFavs));
+          }, []);
+
+          useEffect(() => { localStorage.setItem('fc_pantry', JSON.stringify(pantry)); }, [pantry]);
+          useEffect(() => { localStorage.setItem('fc_shop', JSON.stringify(shoppingList)); }, [shoppingList]);
+          useEffect(() => { localStorage.setItem('fc_favs', JSON.stringify(favorites)); }, [favorites]);
+
+          // --- LOGIC ---
+          const togglePantry = (id) => {
+            setPantry(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+          };
+
+          const toggleFavorite = (id, e) => {
+            if (e) e.stopPropagation();
+            setFavorites(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+          };
+
+          const filteredIngredients = useMemo(() => {
+            return INGREDIENTS_DB.filter(ing => {
+              const matchSearch = ing.fr.toLowerCase().includes(searchTerm.toLowerCase()) || ing.ar.includes(searchTerm);
+              const matchCat = ing.cat === selectedCat;
+              return searchTerm ? matchSearch : matchCat;
+            });
+          }, [searchTerm, selectedCat]);
+
+          const matchingRecipes = useMemo(() => {
+            let list = RECIPES_DB;
+            // Filter logic
+            if (selectedRecipeFilter === 'fav') {
+                list = list.filter(r => favorites.includes(r.id));
+            } else {
+                list = list.filter(r => r.type === selectedRecipeFilter);
+            }
+
+            return list.map(recipe => {
+              const totalIng = recipe.ingredients.length;
+              const ownedIng = recipe.ingredients.filter(i => pantry.includes(i));
+              const matchScore = totalIng > 0 ? Math.round((ownedIng.length / totalIng) * 100) : 0;
+              const missing = recipe.ingredients.filter(i => !pantry.includes(i));
+              return { ...recipe, matchScore, missing };
+            }).sort((a, b) => b.matchScore - a.matchScore);
+          }, [pantry, selectedRecipeFilter, favorites]);
+
+          const addToShop = (ids) => {
+            const newItems = ids.filter(id => !shoppingList.includes(id));
+            setShoppingList([...shoppingList, ...newItems]);
+            alert(t.add_list + " (" + ids.length + ")");
+          };
+
+          const getIngName = (id) => {
+            const ing = INGREDIENTS_DB.find(i => i.id === id);
+            return ing ? ing[lang] : id;
+          };
+
+          // --- RENDERERS ---
+          const renderPantry = () => (
+            <div className="pb-24 animate-in">
+              <div className="sticky top-0 bg-slate-950/95 backdrop-blur z-20 p-4 border-b border-slate-800">
+                <div className="bg-slate-900 flex items-center p-3 rounded-xl border border-slate-800 shadow-sm focus-within:border-emerald-500 transition-colors">
+                  <Search className="text-slate-500 w-5 h-5 mx-2" />
+                  <input 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder={t.search}
+                    className="bg-transparent border-none outline-none text-slate-200 flex-1 placeholder-slate-600 font-medium"
+                  />
+                  {searchTerm && <button onClick={() => setSearchTerm('')}><X className="text-slate-500 w-4 h-4"/></button>}
+                </div>
+              </div>
+
+              {!searchTerm && (
+                <div className="flex overflow-x-auto gap-3 p-4 bg-slate-950 no-scrollbar">
+                  {CAT_INGREDIENTS.map(cat => (
+                    <button 
+                      key={cat.id}
+                      onClick={() => setSelectedCat(cat.id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all border ${selectedCat === cat.id ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-900/40' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                      <span>{cat.icon}</span>
+                      <span className="font-bold text-sm">{cat[lang]}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 p-4">
+                {filteredIngredients.map(ing => {
+                  const isSelected = pantry.includes(ing.id);
+                  return (
+                    <button 
+                      key={ing.id} 
+                      onClick={() => togglePantry(ing.id)}
+                      className={`flex flex-col items-center gap-2 relative group transition-transform active:scale-95`}
+                    >
+                      <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 transition-all shadow-sm relative ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/50' : 'border-slate-700 hover:border-slate-500'}`}>
+                        {/* Image affichage clair (pas de grayscale, opacité pleine) */}
+                        <div className="w-full h-full bg-white">
+                            <img src={ing.img} className="w-full h-full object-cover" alt={ing.fr} onError={(e) => e.target.style.display = 'none'} />
+                        </div>
+                        
+                        {/* Overlay vert seulement si sélectionné */}
+                        {isSelected && <div className="absolute inset-0 bg-emerald-600/60 flex items-center justify-center scale-in"><CheckCircle className="text-white w-8 h-8 drop-shadow-md"/></div>}
+                      </div>
+                      <span className={`text-[10px] text-center font-bold leading-tight line-clamp-2 ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}>{ing[lang]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {pantry.length > 0 && (
+                <div className="fixed bottom-24 left-0 right-0 p-4 z-30 max-w-md mx-auto pointer-events-none">
+                  <button onClick={() => setActiveTab('recipes')} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-xl shadow-emerald-900/50 flex items-center justify-center gap-2 pointer-events-auto active:scale-95 transition-transform slide-up">
+                    <Flame className="w-5 h-5 animate-pulse" /> {t.find_btn} <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{pantry.length}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+
+          const renderRecipes = () => (
+            <div className="pb-24 pt-4 px-4 animate-in">
+              <div className="flex bg-slate-900 p-1 rounded-xl mb-4 border border-slate-800 sticky top-4 z-10 shadow-xl overflow-x-auto no-scrollbar">
+                {[
+                  { id: 'plat', label: t.filter_plat, icon: Utensils },
+                  { id: 'dessert', label: t.filter_dessert, icon: Coffee },
+                  { id: 'boisson', label: t.filter_boisson, icon: Droplets },
+                  { id: 'fav', label: t.filter_fav, icon: Heart },
+                ].map(f => (
+                  <button 
+                    key={f.id} 
+                    onClick={() => setSelectedRecipeFilter(f.id)}
+                    className={`flex-1 min-w-[80px] py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all whitespace-nowrap px-2 ${selectedRecipeFilter === f.id ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    <f.icon className={`w-3 h-3 ${f.id === 'fav' && selectedRecipeFilter === f.id ? 'fill-current' : ''}`} /> {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {matchingRecipes.length === 0 ? (
+                    <div className="text-center py-20 text-slate-600 flex flex-col items-center">
+                        <Info className="w-12 h-12 mb-2 opacity-50" />
+                        <p>{selectedRecipeFilter === 'fav' ? t.no_favs : "Aucune recette trouvée."}</p>
+                    </div>
+                ) : (
+                    matchingRecipes.map(recipe => (
+                    <div key={recipe.id} onClick={() => setSelectedRecipe(recipe)} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex gap-3 cursor-pointer hover:border-slate-700 transition relative overflow-hidden group active:bg-slate-800">
+                        <div className="w-24 h-24 bg-slate-800 rounded-xl overflow-hidden flex-shrink-0 relative">
+                            <img src={recipe.img} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={recipe.title[lang]} />
+                            <div className={`absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-sm backdrop-blur-sm ${recipe.matchScore === 100 ? 'bg-emerald-600/90' : 'bg-slate-900/80'}`}>
+                                {recipe.matchScore}%
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
+                            <div className="flex justify-between items-start">
+                                <h3 className="text-slate-200 font-bold truncate text-lg pr-6">{recipe.title[lang]}</h3>
+                                <button onClick={(e) => toggleFavorite(recipe.id, e)} className="text-slate-500 hover:text-red-500 active:scale-125 transition">
+                                    <Heart className={`w-5 h-5 ${favorites.includes(recipe.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                                </button>
+                            </div>
+                            <div className="flex gap-3 text-xs text-slate-500 mt-1 mb-2">
+                                <span>{recipe.time} {t.min}</span>
+                                <span>•</span>
+                                <span>{recipe.calories} {t.calories}</span>
+                            </div>
+                            <div className="flex items-center gap-1 overflow-hidden h-6">
+                                {recipe.missing.length === 0 ? (
+                                    <span className="text-[10px] text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-900/50 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {t.have_all}</span>
+                                ) : (
+                                    <>
+                                    <span className="text-[10px] text-red-400 mr-1 flex-shrink-0">{t.missing}:</span>
+                                    <div className="flex gap-1 overflow-hidden">
+                                        {recipe.missing.slice(0, 2).map(mid => (
+                                            <span key={mid} className="text-[10px] text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 truncate max-w-[60px]">{getIngName(mid)}</span>
+                                        ))}
+                                        {recipe.missing.length > 2 && <span className="text-[10px] text-slate-500 bg-slate-950 px-1 rounded border border-slate-800">+{recipe.missing.length - 2}</span>}
+                                    </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    ))
+                )}
+              </div>
+            </div>
+          );
+
+          const renderShop = () => (
+            <div className="p-4 animate-in">
+              <div className="flex justify-between items-center mb-6 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{t.shop}</h2>
+                    <p className="text-xs text-slate-500">{shoppingList.length} items</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2" onClick={() => {
+                      const text = `🛒 *${t.appTitle} - ${t.shop}*\n\n` + shoppingList.map(id => `- [ ] ${getIngName(id)}`).join('\n');
+                      if (navigator.clipboard) {
+                            navigator.clipboard.writeText(text).then(() => {
+                                setShowCopyFeedback(true);
+                                setTimeout(() => setShowCopyFeedback(false), 2000);
+                            });
+                        }
+                    }}>
+                        {showCopyFeedback ? <CheckCircle className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                        {showCopyFeedback ? t.copied : t.share}
+                    </button>
+                    <button className="bg-red-600/10 hover:bg-red-600/20 text-red-400 px-3 py-2 rounded-lg text-xs font-bold transition" onClick={() => {if(window.confirm('Vider la liste ?')) setShoppingList([])}}>
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+              </div>
+              
+              {shoppingList.length === 0 ? (
+                <div className="text-center py-24 text-slate-600 border-2 border-dashed border-slate-800 rounded-3xl mx-4">
+                  <ShoppingBasket className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                  <p className="font-medium">{t.shopEmpty}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {shoppingList.map(id => (
+                    <div key={id} className="flex items-center justify-between p-4 bg-slate-900 rounded-xl border border-slate-800 animate-in slide-up">
+                      <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                          <span className="text-slate-300 font-medium text-lg">{getIngName(id)}</span>
+                      </div>
+                      <button 
+                        onClick={() => setShoppingList(l => l.filter(x => x !== id))}
+                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-full transition"
+                      >
+                          <X className="w-5 h-5"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+
+          const renderDetail = () => {
+            if (!selectedRecipe) return null;
+            return (
+              <div className="fixed inset-0 bg-slate-950 z-50 overflow-y-auto animate-in slide-up no-scrollbar">
+                <div className="relative h-80">
+                  <img src={selectedRecipe.img} className="w-full h-full object-cover" alt={selectedRecipe.title[lang]} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                  
+                  <div className="absolute top-4 left-0 right-0 px-4 flex justify-between items-center z-10">
+                    <button onClick={() => setSelectedRecipe(null)} className="bg-black/40 p-2 rounded-full text-white backdrop-blur-md hover:bg-black/60 transition border border-white/10">
+                        <ArrowLeft className="w-6 h-6 rtl:rotate-180"/>
+                    </button>
+                    <button onClick={() => toggleFavorite(selectedRecipe.id)} className="bg-black/40 p-2 rounded-full text-white backdrop-blur-md hover:bg-black/60 transition border border-white/10">
+                        <Heart className={`w-6 h-6 ${favorites.includes(selectedRecipe.id) ? 'fill-red-500 text-red-500' : ''}`}/>
+                    </button>
+                  </div>
+
+                  <div className="absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-slate-950 to-transparent">
+                    <h2 className="text-3xl font-black text-white mb-3 leading-tight drop-shadow-lg">{selectedRecipe.title[lang]}</h2>
+                    <div className="flex gap-3 text-sm text-slate-300">
+                      <span className="bg-slate-900/80 px-3 py-1 rounded-full backdrop-blur border border-slate-700 flex items-center gap-1">
+                          <Globe className="w-3 h-3 text-emerald-500"/> {selectedRecipe.time} {t.min}
+                      </span>
+                      <span className="bg-slate-900/80 px-3 py-1 rounded-full backdrop-blur border border-slate-700 flex items-center gap-1">
+                          <Flame className="w-3 h-3 text-orange-500"/> {selectedRecipe.calories} {t.calories}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 pb-20 max-w-lg mx-auto">
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-emerald-500 font-bold uppercase text-xs tracking-widest">{t.ingredients_tab}</h3>
+                        <span className="text-xs text-slate-500">{selectedRecipe.ingredients.length} items</span>
+                    </div>
+                    
+                    {selectedRecipe.missing.length > 0 && (
+                      <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-6">
+                        <div className="text-red-400 font-bold text-sm mb-3 flex items-center gap-2">
+                            <ShoppingBasket className="w-4 h-4"/> {t.missing}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {selectedRecipe.missing.map(id => (
+                            <span key={id} className="text-xs bg-red-500/20 text-red-200 px-2 py-1 rounded-md border border-red-500/30">{getIngName(id)}</span>
+                          ))}
+                        </div>
+                        <button onClick={() => addToShop(selectedRecipe.missing)} className="w-full bg-red-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20 flex items-center justify-center gap-2">
+                            <Plus className="w-4 h-4"/> {t.add_list}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="grid gap-2">
+                      {selectedRecipe.ingredients.map(id => {
+                        const has = pantry.includes(id);
+                        return (
+                          <div key={id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors border ${has ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-slate-900 border-slate-800'}`}>
+                            <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${has ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                                {has && <CheckCircle className="w-3 h-3 text-white"/>}
+                            </div>
+                            <span className={`font-medium ${has ? 'text-slate-200' : 'text-slate-500'}`}>{getIngName(id)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                      <h3 className="text-emerald-500 font-bold uppercase text-xs tracking-widest mb-6">{t.prep}</h3>
+                      <div className="space-y-8 border-l-2 border-slate-800 pl-6 ml-2 rtl:border-r-2 rtl:border-l-0 rtl:mr-2 rtl:pl-0 rtl:pr-6">
+                        {selectedRecipe.instructions[lang].map((step, i) => (
+                          <div key={i} className="relative text-slate-300 leading-relaxed text-base group">
+                            <span className="absolute -left-[35px] rtl:-right-[35px] top-0 w-9 h-9 flex items-center justify-center bg-slate-900 border-2 border-slate-800 rounded-full text-sm font-bold text-emerald-500 shadow-sm group-hover:border-emerald-500 transition-colors">{i+1}</span>
+                            {step}
+                          </div>
+                        ))}
+                      </div>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          return (
+            <div dir={isRTL ? 'rtl' : 'ltr'} className={`min-h-screen bg-slate-950 font-sans max-w-md mx-auto border-x border-slate-900 relative text-slate-200 ${lang === 'ar' ? 'font-arabic' : 'font-sans'}`}>
+                <div className="flex justify-between items-center p-4 bg-slate-950 border-b border-slate-900 sticky top-0 z-30">
+                  <h1 className="text-xl font-black text-white flex items-center gap-2 tracking-tight">
+                    <div className="bg-emerald-600 p-1.5 rounded-lg rotate-3"><ChefHat className="text-white w-5 h-5" /></div>
+                    {t.appTitle}
+                  </h1>
+                  <button onClick={() => setLang(l => l === 'fr' ? 'ar' : 'fr')} className="flex items-center gap-1 text-[10px] font-bold bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 hover:bg-slate-800 hover:text-emerald-400 transition-colors uppercase tracking-wider">
+                    <Globe className="w-3 h-3" /> {t.lang_btn}
+                  </button>
+                </div>
+
+                {activeTab === 'pantry' && renderPantry()}
+                {activeTab === 'recipes' && renderRecipes()}
+                {activeTab === 'shop' && renderShop()}
+                {renderDetail()}
+
+                <div className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-lg border-t border-slate-900 flex justify-around p-2 pb-6 z-40 max-w-md mx-auto">
+                  <button onClick={() => setActiveTab('pantry')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === 'pantry' ? 'text-emerald-400 bg-emerald-400/10' : 'text-slate-600 hover:text-slate-400'}`}>
+                    <Refrigerator className="w-6 h-6" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t.pantry}</span>
+                  </button>
+                  <button onClick={() => setActiveTab('recipes')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === 'recipes' ? 'text-emerald-400 bg-emerald-400/10' : 'text-slate-600 hover:text-slate-400'}`}>
+                    <Utensils className="w-6 h-6" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t.recipes}</span>
+                  </button>
+                  <button onClick={() => setActiveTab('shop')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === 'shop' ? 'text-emerald-400 bg-emerald-400/10' : 'text-slate-600 hover:text-slate-400'}`}>
+                    <div className="relative">
+                      <List className="w-6 h-6" />
+                      {shoppingList.length > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-bounce flex items-center justify-center text-[8px] text-white font-bold">{shoppingList.length}</span>}
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t.shop}</span>
+                  </button>
+                </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
