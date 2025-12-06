@@ -35,34 +35,49 @@
     </style>
 </head>
 <body>
-    <div id="root" class="flex h-screen flex-col items-center justify-center text-white bg-slate-950 font-sans p-4 text-center">
+    <div id="loader" class="flex h-screen flex-col items-center justify-center text-white bg-slate-950 font-sans p-4 text-center">
         <h1 class="text-2xl font-bold mb-2 text-emerald-500">Frigo-Chef DZ</h1>
-        <p class="text-slate-400 animate-pulse">Chargement en cours...</p>
-        <div id="error-display" class="hidden mt-4 p-4 bg-red-900/50 border border-red-500 rounded text-red-200 text-sm text-left w-full max-w-md overflow-auto"></div>
+        <p class="text-slate-400 animate-pulse">Chargement des modules...</p>
+        <div id="error-msg" class="hidden mt-4 text-red-400 text-sm border border-red-900 p-2 rounded bg-red-950/30"></div>
     </div>
+    
+    <div id="root"></div>
 
     <script>
-        window.onerror = function(message, source, lineno, colno, error) {
-            const display = document.getElementById('error-display');
-            display.classList.remove('hidden');
-            display.innerHTML = '<strong>Erreur détectée :</strong><br/>' + message + '<br/><small>' + source + ':' + lineno + '</small>';
-        };
+        // Vérification pré-lancement pour afficher une erreur claire si internet coupe
+        window.onload = function() {
+            if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+                const err = document.getElementById('error-msg');
+                err.classList.remove('hidden');
+                err.innerHTML = "⚠️ Erreur : Impossible de charger React.<br>Vérifiez votre connexion internet.";
+            } else {
+                // Tout est OK, on cache le loader quand React prend le relais
+            }
+        }
     </script>
 
     <script type="text/babel">
         // --- 0. SÉCURITÉ & UTILS ---
         const { useState, useMemo, useEffect } = React;
 
-        // Lecture sécurisée du LocalStorage
+        // Fonction sécurisée pour LIRE le LocalStorage
         const safeLoad = (key, fallback) => {
             try {
                 const item = localStorage.getItem(key);
-                // Vérification basique si c'est un JSON valide
                 if (!item || item === "undefined") return fallback;
                 return JSON.parse(item);
             } catch (error) {
-                console.warn("Resetting data for", key);
+                console.warn("Erreur lecture stockage:", error);
                 return fallback;
+            }
+        };
+
+        // Fonction sécurisée pour ÉCRIRE dans le LocalStorage (évite le crash "Script Error")
+        const safeSave = (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (error) {
+                console.warn("Erreur sauvegarde (mémoire pleine ou navigation privée):", error);
             }
         };
 
@@ -98,15 +113,34 @@
             }
         ];
 
-        // --- 2. COMPOSANTS ---
+        // --- 2. COMPOSANTS ICONES ---
         const Icon = ({ children, className, onClick }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} onClick={onClick}>{children}</svg>
         );
         
-        // Icônes définies ici pour éviter les erreurs de chargement externe
         const Icons = {
             Search: (p) => <Icon {...p}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></Icon>,
             ChefHat: (p) => <Icon {...p}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"></path><line x1="6" y1="17" x2="18" y2="17"></line></Icon>,
             Heart: (p) => <Icon {...p}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></Icon>,
             ArrowLeft: (p) => <Icon {...p}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></Icon>,
-            Plus: (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x
+            Plus: (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></Icon>,
+            X: (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></Icon>,
+            Check: (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"></polyline></Icon>,
+            Flame: (p) => <Icon {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></Icon>,
+            Settings: (p) => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 1-2-2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73v.18a2 2 0 0 0 2 0v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V2.18a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></Icon>,
+            Trash: (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></Icon>,
+            Edit: (p) => <Icon {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></Icon>,
+            Share: (p) => <Icon {...p}><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></Icon>,
+            Fridge: (p) => <Icon {...p}><path d="M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><line x1="5" y1="10" x2="19" y2="10"/><path d="M15 2v20"/></Icon>,
+            Utensils: (p) => <Icon {...p}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></Icon>,
+            List: (p) => <Icon {...p}><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></Icon>,
+            Globe: (p) => <Icon {...p}><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></Icon>,
+            Alert: (p) => <Icon {...p}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></Icon>
+        };
+
+        const CATEGORIES = [
+            { id: 'legume', fr: 'Légumes & Fruits', ar: 'خضروات وفواكه', en: 'Veg & Fruits', icon: '🥕' },
+            { id: 'viande', fr: 'Viandes & Poissons', ar: 'لحوم وأسماك', en: 'Meats & Fish', icon: '🥩' },
+            { id: 'epicerie', fr: 'Épicerie & Farines', ar: 'بقوليات ومؤونة', en: 'Pantry & Flour', icon: '🌾' },
+            { id: 'epice', fr: 'Épices', ar: 'توابل', en: 'Spices', icon: '🌶️' },
+            { id: 'laitage', fr
